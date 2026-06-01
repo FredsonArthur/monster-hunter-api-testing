@@ -2,34 +2,25 @@
 
 import pytest
 import requests
+from services.monster_service import MonsterService
 
 @pytest.fixture(scope="session")
 def base_url():
-    # URL base da API
+    """URL base da API."""
     return "https://mhw-db.com"
 
 @pytest.fixture(scope="session")
 def session():
     """
-    Cria uma sessão de requisições. 
-    Usar 'session' é uma boa prática pois reaproveita a conexão TCP,
-    tornando os testes mais rápidos.
+    Cria uma sessão de requisições reaproveitando a conexão TCP.
     """
     with requests.Session() as s:
-        # Podemos definir headers padrão aqui, se a API exigisse autenticação
-        # s.headers.update({"Accept": "application/json"})
         yield s
 
-def test_get_specific_monster(base_url, session):
-    monster_id = 1
-    # Montamos a URL concatenando o endpoint
-    url = f"{base_url}/monsters/{monster_id}"
-    
-    # Realizamos o GET
-    response = session.get(url)
-    
-    # Validações iniciais de conexão
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == monster_id
-    assert "name" in data
+@pytest.fixture(scope="session")
+def monster_service(session, base_url):
+    """
+    Fornece a instância do serviço de monstros para todos os testes.
+    Isso centraliza a lógica de acesso à API.
+    """
+    return MonsterService(session, base_url)
