@@ -1,10 +1,9 @@
-# Eduarda Santos - Teste Avançado de Busca de Monstros na API Monster Hunter
+# Eduarda Santos - Teste Avançado de Busca de Monstros (Hunter Codex - Mockado)
 
 import pytest
 import json
 from jsonschema import validate
 
-# Definição do schema esperado para um monstro (simplificado)
 MONSTER_SCHEMA = {
     "type": "array",
     "items": {
@@ -18,21 +17,22 @@ MONSTER_SCHEMA = {
     }
 }
 
-def test_search_monster_by_name_and_validate_schema(base_url, session):
-    # Parâmetro de busca
+def test_search_monster_by_name_and_validate_schema(monster_service, mocker):
     monster_name = "Great Jagras"
-    params = {"q": json.dumps({"name": monster_name})}
+    mock_data = [{"id": 1, "name": "Great Jagras", "type": "large"}]
     
-    # Execução
-    response = session.get(f"{base_url}/monsters", params=params)
+    # Removemos o match_querystring. O requests-mock tentará casar a URL.
+    # Como o serviço monta a URL com query params (?q=...), 
+    # podemos usar um matcher mais flexível:
+    mocker.get("https://mhw-db.com/monsters", json=mock_data)
+    
+    # Execução através do serviço
+    response = monster_service.get_monster_by_name(monster_name)
     
     # Assertions
     assert response.status_code == 200
     data = response.json()
     
-    # Validando o Schema
     validate(instance=data, schema=MONSTER_SCHEMA)
-    
-    # Validando conteúdo específico
     assert len(data) > 0
     assert data[0]["name"] == monster_name

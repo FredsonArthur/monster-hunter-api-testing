@@ -1,22 +1,26 @@
-# Eduarda Santos - Teste Negativo para Busca de Monstros na API Monster Hunter
+# Eduarda Santos - Teste Negativo para Busca de Monstros (Hunter Codex - Mockado)
 
 import pytest
 
-def test_get_nonexistent_monster(monster_service):
+def test_get_nonexistent_monster(monster_service, mocker):
     """
-    Valida que a API retorna erro 404 ao buscar um ID inexistente,
-    utilizando a Service Layer para a requisição.
+    Valida que o serviço trata o erro 404 localmente, 
+    sem necessidade de conexão com a API real.
     """
     monster_id = 99999
     
-    # Execução através do serviço
+    # 1. Configuramos o Mocker para simular a falha 404
+    mocker.get(
+        f"https://mhw-db.com/monsters/{monster_id}", 
+        status_code=404, 
+        json={"detail": "Not Found", "status": 404}
+    )
+    
+    # 2. Execução através do serviço (agora interceptada pelo mocker)
     response = monster_service.get_monster_by_id(monster_id)
     
-    # Validações
+    # 3. Validações
     assert response.status_code == 404
-    
-    # Valida a estrutura de erro retornada pela API
     error_data = response.json()
-    assert "detail" in error_data
     assert error_data["detail"] == "Not Found"
     assert error_data["status"] == 404
