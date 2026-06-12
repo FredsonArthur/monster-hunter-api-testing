@@ -29,26 +29,22 @@ class MonsterService:
         cached = self.collection.find_one({"name": name})
         
         if cached:
-            # Classe auxiliar para simular o comportamento de um Response do requests
-            class MockResponse:
-                def __init__(self, data): self.data = data
-                def json(self): return self.data
-                @property
-                def status_code(self): return 200
-            return MockResponse(cached['data'])
+            return cached['data'] # Retorna direto o dicionário
 
         # Busca na API
         url = f"{self.base_url}/monsters"
         params = {"q": json.dumps({"name": name})}
         response = self.session.get(url, params=params)
         
-        if response.status_code == 200 and response.json():
-            # A API retorna uma lista, salvamos o conteúdo
-            data = response.json()
-            self._save_to_db(name, data)
+        if response.status_code == 200:
+            monsters = response.json()
+            if monsters and isinstance(monsters, list):
+                data = monsters[0] # Pega o primeiro da lista
+                self._save_to_db(name, data)
+                return data
             
-        return response
-
+        return None # Retorna None se não achar nada
+    
     def get_monster_by_id(self, monster_id):
         return self.session.get(f"{self.base_url}/monsters/{monster_id}")
 
