@@ -4,17 +4,21 @@ import json
 from pymongo import MongoClient
 
 class MonsterService:
-    def __init__(self, session, base_url, mongo_uri='mongodb://localhost:27017/'):
+    def __init__(self, session, base_url, mongo_uri='mongodb://localhost:27017/', collection=None):
         self.session = session
         self.base_url = base_url
-        # Conexão com MongoDB
-        self.client = MongoClient(mongo_uri)
-        self.db = self.client['hunter_codex_db']
-        self.collection = self.db['monsters']
+        
+        # Se uma coleção for passada (via injeção de dependência), usamos ela.
+        # Caso contrário, conectamos ao MongoDB real.
+        if collection is not None:
+            self.collection = collection
+        else:
+            self.client = MongoClient(mongo_uri)
+            self.db = self.client['hunter_codex_db']
+            self.collection = self.db['monsters']
 
     def _save_to_db(self, name, data):
         """Salva ou atualiza o monstro no MongoDB."""
-        # Usamos update_one com upsert=True para não duplicar registros
         self.collection.update_one(
             {"name": name}, 
             {"$set": {"name": name, "data": data}}, 
