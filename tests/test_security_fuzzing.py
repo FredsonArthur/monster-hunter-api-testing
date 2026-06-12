@@ -12,16 +12,15 @@ import json
 def test_fuzzing_monster_search(monster_service, mocker, invalid_query):
     """
     Testa se o serviço lida com inputs inválidos sem disparar erros 500.
-    Agora 100% local via Mocker.
+    Agora 100% local via Mocker e validando o retorno None do serviço.
     """
-    # Configuramos o mock para retornar um erro 400 (Bad Request) para inputs inválidos
-    # Isso simula o comportamento de uma API segura.
+    # 1. Configuramos o mock para retornar um erro 400 (Bad Request)
     mocker.get("https://mhw-db.com/monsters", status_code=400, json={"error": "Bad Request"})
     
-    # Execução através do serviço
-    response = monster_service.get_monster_by_name(json.dumps(invalid_query))
+    # 2. Execução através do serviço
+    # O serviço retorna None quando a API retorna erro (status_code != 200)
+    result = monster_service.get_monster_by_name(json.dumps(invalid_query))
     
-    # Validação de segurança: 
-    # O mock garantiu que não houve erro 500.
-    assert response.status_code != 500, f"API falhou com erro 500 para input: {invalid_query}"
-    assert response.status_code == 400
+    # 3. Validação de segurança: 
+    # O serviço deve retornar None, garantindo que não houve estouro (500)
+    assert result is None, f"O serviço deveria retornar None para input inválido: {invalid_query}"

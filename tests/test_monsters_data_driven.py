@@ -22,10 +22,10 @@ def test_search_multiple_monsters(monster_service, mocker, monster_name):
     mocker.get("https://mhw-db.com/monsters", json=mock_response)
     
     # Execução através do serviço
-    response = monster_service.get_monster_by_name(monster_name)
+    # O retorno agora é o dicionário do monstro encontrado
+    data = monster_service.get_monster_by_name(monster_name)
     
     # Assertions
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) > 0
-    assert data[0]["name"] == monster_name
+    # Validamos diretamente o dicionário retornado
+    assert data is not None
+    assert data["name"] == monster_name

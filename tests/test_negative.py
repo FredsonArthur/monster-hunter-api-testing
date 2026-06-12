@@ -4,7 +4,7 @@ import pytest
 
 def test_get_nonexistent_monster(monster_service, mocker):
     """
-    Valida que o serviço trata o erro 404 localmente, 
+    Valida que o serviço trata o erro 404, 
     sem necessidade de conexão com a API real.
     """
     monster_id = 99999
@@ -16,7 +16,9 @@ def test_get_nonexistent_monster(monster_service, mocker):
         json={"detail": "Not Found", "status": 404}
     )
     
-    # 2. Execução através do serviço (agora interceptada pelo mocker)
+    # 2. Execução através do serviço
+    # O método get_monster_by_id retorna um objeto Response,
+    # por isso o status_code continua sendo validado aqui.
     response = monster_service.get_monster_by_id(monster_id)
     
     # 3. Validações

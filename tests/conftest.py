@@ -25,8 +25,11 @@ def mocker():
 
 @pytest.fixture(scope="function")
 def mock_collection():
-    """Cria um mock para a coleção do MongoDB."""
-    return MagicMock()
+    """Cria um mock para a coleção do MongoDB que retorna None (cache vazio)."""
+    mock = MagicMock()
+    # Força o find_one a retornar None, indicando que não há nada no banco
+    mock.find_one.return_value = None
+    return mock
 
 @pytest.fixture(scope="function")
 def monster_service(session, base_url, mocker, mock_collection):

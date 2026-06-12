@@ -13,13 +13,17 @@ def test_mock_generic_resource_integrity(recurso, monster_service, mocker):
     with open(caminho_arquivo, 'r') as f:
         mock_data = json.load(f)
     
+    # Registra o mock para o endpoint genérico
     mocker.get(f"https://mhw-db.com/{recurso}", json=mock_data)
     
+    # Execução através do serviço
+    # Este método mantém o retorno do tipo 'Response'
     response = monster_service.get_resource(recurso)
+    
+    # Validações
+    assert response.status_code == 200
     dados = response.json()
     
-    # Validações genéricas de integridade
-    assert response.status_code == 200
     assert isinstance(dados, list), f"O recurso {recurso} deveria retornar uma lista."
     assert len(dados) > 0, f"O arquivo de mock para {recurso} está vazio!"
     

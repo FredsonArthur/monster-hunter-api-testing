@@ -5,34 +5,27 @@ import json
 from jsonschema import validate
 
 MONSTER_SCHEMA = {
-    "type": "array",
-    "items": {
-        "type": "object",
-        "properties": {
-            "id": {"type": "number"},
-            "name": {"type": "string"},
-            "type": {"type": "string"}
-        },
-        "required": ["id", "name", "type"]
-    }
+    "type": "object", # Alterado de "array" para "object", pois o serviço retorna o primeiro item do dict
+    "properties": {
+        "id": {"type": "number"},
+        "name": {"type": "string"},
+        "type": {"type": "string"}
+    },
+    "required": ["id", "name", "type"]
 }
 
 def test_search_monster_by_name_and_validate_schema(monster_service, mocker):
     monster_name = "Great Jagras"
     mock_data = [{"id": 1, "name": "Great Jagras", "type": "large"}]
     
-    # Removemos o match_querystring. O requests-mock tentará casar a URL.
-    # Como o serviço monta a URL com query params (?q=...), 
-    # podemos usar um matcher mais flexível:
+    # O mocker intercepta a chamada que o service fará internamente
     mocker.get("https://mhw-db.com/monsters", json=mock_data)
     
     # Execução através do serviço
-    response = monster_service.get_monster_by_name(monster_name)
+    # O resultado agora é o dicionário do monstro
+    data = monster_service.get_monster_by_name(monster_name)
     
     # Assertions
-    assert response.status_code == 200
-    data = response.json()
-    
+    assert data is not None
     validate(instance=data, schema=MONSTER_SCHEMA)
-    assert len(data) > 0
-    assert data[0]["name"] == monster_name
+    assert data["name"] == monster_name
