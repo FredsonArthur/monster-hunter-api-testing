@@ -1,24 +1,111 @@
 name: CI Hunter Codex
 
-on: [push, pull_request]
+on: 
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Roda todo domingo às 00:00
+    - cron: '0 0 * * 0'
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Configurar Python
-        uses: actions/setup-python@v4
+      - name: Configurar Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Instalar dependências
         run: |
           python -m pip install --upgrade pip
-          pip install pytest requests requests-mock jsonschema pytest-html sqlalchemy streamlit pymongo pandas
+          pip install -r requirements.txt
+          pip install pytest-cov pytest-html pytest-xdist
 
-      - name: Rodar testes
+      - name: Verificar estrutura de diretórios
         run: |
-          python -m pytest --html=report.html --self-contained-html
+          ls -la
+          ls -la tests/fixtures/ || echo "No fixtures directory"
+
+      - name: Rodar testes com cobertura
+        run: |
+          python -m pytest tests/ -v --cov=services --cov=. --cov-report=html --cov-report=term --html=report.html --self-contained-html -n auto
+
+      - name: Rodar testes específicos dos recursos
+        run: |
+          python -m pytest tests/test_all_resources.py -v --tb=short || echo "Test file not found"
+
+      - name: Upload do relatório HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report-python${{ matrix.python-version }}
+          path: report.html
+
+      - name: Upload do relatório de cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-python${{ matrix.python-version }}
+          path: htmlcov/
+
+  # Job específico para testes de integração (mais lentos)
+  integration-tests:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-timeout
+
+      - name: Rodar testes lentos (com timeout)
+        run: |
+          python -m pytest tests/ -v --timeout=300 -m slow || echo "No slow tests"
+
+  # Job para validar fixtures (apenas em schedule)
+  validate-fixtures:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: |
+          pip install requests
+
+      - name: Validar frescor dos fixtures
+        run: |
+          python scripts/fetch_fixtures.py || echo "No fetch script"

@@ -2,9 +2,11 @@ import streamlit as st
 import pandas as pd
 import requests
 from services.monster_service import MonsterService
+from services.search_service import SearchService
 
-# Inicializa o serviço
+# Inicializa os serviços
 service = MonsterService(requests.Session(), "https://mhw-db.com")
+search_service = SearchService()
 
 # Configuração da página
 st.set_page_config(page_title="Hunter Codex", layout="wide")
@@ -40,20 +42,53 @@ with st.sidebar:
     st.caption(f"MongoDB: {'Conectado' if service.mongo_available else 'Offline (usando só API)'}")
 
 # ============================================================
-# ÁREA PRINCIPAL - Busca
+# ÁREA PRINCIPAL - Busca com Autocomplete
 # ============================================================
 col1, col2 = st.columns([3, 1])
 
 with col1:
+    # Input com autocomplete
     nome = st.text_input(
         f"🔍 Digite o nome do {recurso_selecionado.lower()}:",
-        placeholder="Ex: Great Jagras, Potion, Leather Headgear..."
+        placeholder="Ex: Great Jagras, Potion, Leather Headgear...",
+        key="search_input"
     )
+    
+    # Autocomplete enquanto digita (mínimo 2 caracteres)
+    if nome and len(nome) >= 2:
+        sugestoes = search_service.autocomplete(recurso, nome, limite=5)
+        if sugestoes:
+            opcoes = [f"{s['name']}" for s in sugestoes]
+            selecionado = st.selectbox(
+                "💡 Sugestões:",
+                options=[""] + opcoes,
+                key="autocomplete",
+                label_visibility="collapsed"
+            )
+            if selecionado:
+                nome = selecionado
 
 with col2:
     st.write("")
     st.write("")
     buscar = st.button("🔍 Buscar", type="primary", use_container_width=True)
+
+# ============================================================
+# Busca Rápida por Letra
+# ============================================================
+with st.expander("🔤 Busca rápida por letra"):
+    st.caption("Clique em uma letra para buscar o primeiro item que começa com ela")
+    letras = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
+    cols = st.columns(13)
+    for i, letra in enumerate(letras):
+        with cols[i % 13]:
+            if st.button(letra, key=f"letra_{letra}"):
+                todos_nomes = search_service.get_all_names(recurso)
+                for nome_item in todos_nomes:
+                    if nome_item and nome_item.upper().startswith(letra):
+                        nome = nome_item
+                        buscar = True
+                        break
 
 # ============================================================
 # RESULTADOS
