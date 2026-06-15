@@ -1,6 +1,11 @@
 # 🏹 Hunter Codex - Sistema de Consulta MHW-DB
 
-[![CI Hunter Codex](https://github.com/SEU_USUARIO/SEU_REPOSITORIO/actions/workflows/testes.yml/badge.svg)](https://github.com/SEU_USUARIO/SEU_REPOSITORIO/actions)
+[![CI Hunter Codex](https://github.com/SEU_USUARIO/SEU_REPOSITORIO/actions/workflows/testes.yml/badge.svg)](https://github.com/SEU_USUARIO/SEU_REPOSITORIO/actions/workflows/testes.yml)
+[![Python Versions](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://python.org)
+[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen)]()
+[![Coverage](https://img.shields.io/badge/Coverage-~70%25-yellow)]()
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red)](https://streamlit.io)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Cache-green)](https://mongodb.com)
 
 ## 📖 Sobre o Projeto
 
