@@ -1,43 +1,111 @@
-# 🏹 Hunter Codex API Testing Suite
+# 🏹 Hunter Codex - Sistema de Consulta MHW-DB
 
 [![CI Hunter Codex](https://github.com/SEU_USUARIO/SEU_REPOSITORIO/actions/workflows/testes.yml/badge.svg)](https://github.com/SEU_USUARIO/SEU_REPOSITORIO/actions)
 
-O **Hunter Codex** é uma suíte de automação de testes de API e dashboard de consulta desenvolvido para validar e interagir com a [MHW-DB API](https://mhw-db.com/). O projeto evoluiu para um ecossistema completo de engenharia de software com foco em resiliência e performance.
+## 📖 Sobre o Projeto
 
-## 🛠 Tecnologias e Ferramentas
-![Python](https://img.shields.io/badge/Python-3.14-blue?logo=python)
-![Pytest](https://img.shields.io/badge/Pytest-9.0-green?logo=pytest)
-![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red?logo=streamlit)
-![SQLAlchemy](https://img.shields.io/badge/SQLite-Persistence-lightgrey?logo=sqlite)
-![GitHub Actions](https://img.shields.io/badge/CI%2FCD-Automated-orange?logo=github)
+O **Hunter Codex** é um sistema completo de consulta à API do Monster Hunter World (MHW-DB), com:
+- Dashboard interativo via **Streamlit**
+- Cache persistente com **MongoDB**
+- Suporte a **5 tipos de recursos**
+- Testes automatizados com **Pytest**
 
----
+## 🎯 Recursos Suportados
 
-## 🛡️ O Diferencial: Blindagem Local (Hunter Codex)
-O projeto é 100% autossuficiente e independente de rede:
-* **Interceptação:** Uso de `requests-mock` para testes determinísticos.
-* **Persistência Híbrida:** Sistema de cache inteligente com **SQLite** para consultas rápidas e offline.
-* **Validação:** Testes avançados de contrato via `jsonschema` e fuzzing de segurança.
-* **Dashboard:** Interface interativa via **Streamlit** que consome o `MonsterService` localmente.
+| Recurso | Descrição | Exemplo |
+|---------|-----------|---------|
+| 🐉 **Monstros** | Informações sobre monstros | Great Jagras, Rathalos |
+| 💀 **Ailments** | Status e como curar/prevenir | Poison, Paralysis |
+| 🛡️ **Armaduras** | Equipamentos e skills | Leather Headgear |
+| 📦 **Itens** | Itens do jogo | Potion, Mega Potion |
+| ⚔️ **Armas** | Armas e árvore de upgrade | Buster Sword 1 |
 
-## 📋 Cobertura de Testes
-Nossa suíte garante a integridade total do sistema:
+## 🛠️ Tecnologias
 
-| Categoria | Descrição |
-| :--- | :--- |
-| **Smoke Tests** | Saúde da API e conectividade. |
-| **Schema Validation** | Conformidade dos contratos de dados (JSON). |
-| **Data-Driven Testing** | Escalabilidade de testes parametrizados. |
-| **Performance** | Monitoramento de latência em ambiente mockado. |
-| **Security Fuzzing** | Robustez contra entradas inválidas/SQLi. |
+![Python](https://img.shields.io/badge/Python-3.14-blue)
+![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red)
+![MongoDB](https://img.shields.io/badge/MongoDB-Cache-green)
+![Pytest](https://img.shields.io/badge/Pytest-Tests-orange)
 
-## 👥 Desenvolvedores
-* **Fredson Arthur**
-* **Eduarda Santos**
-* **Thuanny Helen**
-
----
 ## 🚀 Como Executar
-1. Instale as dependências: `pip install -r requirements.txt`
-2. Rode os testes com relatório HTML: `python -m pytest --html=report.html`
-3. Inicie o dashboard: `streamlit run app.py`
+
+### 1. Instalar dependências
+```bash
+pip install -r requirements.txt
+```
+### 2. Iniciar MongoDB (opcional, para cache)
+```bash
+
+sudo systemctl start mongod
+# ou
+mongod
+```
+### 3. Rodar o Dashboard
+```bash
+
+streamlit run app.py
+```
+### 4. Rodar os Testes
+```bash
+
+pytest tests/ -v
+```
+### 📊 Estrutura do Projeto
+```text
+
+monster-hunter-api-testing/
+├── app.py                    # Dashboard principal
+├── pages/
+│   └── health_dashboard.py   # Dashboard de saúde
+├── services/
+│   └── monster_service.py    # Lógica de busca e cache
+├── tests/
+│   ├── test_all_resources.py # Testes dos 5 recursos
+│   ├── test_health.py        # Testes de saúde
+│   └── fixtures/             # Dados mockados
+├── scripts/
+│   └── fetch_fixtures.py     # Coleta de fixtures
+└── requirements.txt
+```
+### 🗄️ MongoDB - Estrutura do Cache
+
+O sistema cria uma coleção por recurso:
+```text
+
+hunter_codex_db/
+├── monsters/     # Monstros cacheados
+├── ailments/     # Status cacheados
+├── armor/        # Armaduras cacheadas
+├── items/        # Itens cacheados
+└── weapons/      # Armas cacheadas
+```
+### 🧪 Testes Disponíveis
+```bash
+
+# Todos os testes
+pytest tests/ -v
+
+# Testes específicos
+pytest tests/test_all_resources.py -v
+pytest tests/test_all_resources.py::TestAllResources -v
+
+# Com relatório HTML
+pytest --html=report.html
+```
+### 🔧 Configurações
+Parâmetro	Padrão	Descrição
+cache_ttl_hours	168 (7 dias)	Tempo de vida do cache
+mongo_uri	mongodb://localhost:27017/	Conexão MongoDB
+base_url	https://mhw-db.com	URL da API
+
+👥 Desenvolvedores
+
+    Fredson Arthur
+
+    Eduarda Santos
+
+    Thuanny Helen
+
+📝 Licença
+
+Este projeto é para fins educacionais e de estudo.
