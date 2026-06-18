@@ -68,7 +68,7 @@ class MonsterService:
     def _save_to_db(self, resource: str, name: str, data: Dict[str, Any]):
         """Salva ou atualiza o item no MongoDB, na coleção específica do recurso"""
         collection = self._get_collection(resource)
-        if not collection:
+        if collection is None:
             logger.warning(f"MongoDB indisponível, não foi possível cachear {resource}:{name}")
             return
         
@@ -91,7 +91,7 @@ class MonsterService:
     def _get_from_cache(self, resource: str, name: str) -> Optional[Dict[str, Any]]:
         """Recupera do MongoDB se existir e não estiver stale"""
         collection = self._get_collection(resource)
-        if not collection:
+        if collection is None:
             return None
         
         try:

@@ -4,11 +4,76 @@ import requests
 from services.monster_service import MonsterService
 from services.search_service import SearchService
 
-# Inicializa os serviços
-service = MonsterService(requests.Session(), "https://mhw-db.com")
+# ============================================================
+# INICIALIZAÇÃO DO MONGODB
+# ============================================================
+if 'mongodb_ativado' not in st.session_state:
+    st.session_state.mongodb_ativado = True
+
+if 'ttl_hours' not in st.session_state:
+    st.session_state.ttl_hours = 168
+
+if 'ultima_atualizacao' not in st.session_state:
+    st.session_state.ultima_atualizacao = None
+
+# ============================================================
+# INICIALIZAÇÃO DO HISTÓRICO
+# ============================================================
+if 'historico' not in st.session_state:
+    st.session_state.historico = []
+
+def adicionar_ao_historico(termo, recurso):
+    item = {"termo": termo, "recurso": recurso}
+    st.session_state.historico = [i for i in st.session_state.historico if i["termo"] != termo or i["recurso"] != recurso]
+    st.session_state.historico.insert(0, item)
+    st.session_state.historico = st.session_state.historico[:10]
+
+# ============================================================
+# INICIALIZAÇÃO DOS FAVORITOS
+# ============================================================
+if 'favoritos' not in st.session_state:
+    st.session_state.favoritos = []
+
+def adicionar_favorito(termo, recurso):
+    item = {"termo": termo, "recurso": recurso}
+    if item not in st.session_state.favoritos:
+        st.session_state.favoritos.append(item)
+        return True
+    return False
+
+def remover_favorito(termo, recurso):
+    item = {"termo": termo, "recurso": recurso}
+    if item in st.session_state.favoritos:
+        st.session_state.favoritos.remove(item)
+        return True
+    return False
+
+def is_favorito(termo, recurso):
+    for fav in st.session_state.favoritos:
+        if fav["termo"] == termo and fav["recurso"] == recurso:
+            return True
+    return False
+
+# ============================================================
+# INICIALIZAÇÃO DO SERVIÇO
+# ============================================================
+@st.cache_resource
+def get_service(ttl_hours):
+    return MonsterService(
+        requests.Session(),
+        "https://mhw-db.com",
+        cache_ttl_hours=ttl_hours
+    )
+
+service = get_service(st.session_state.ttl_hours)
 search_service = SearchService()
 
-# Configuração da página
+def reiniciar_servico_com_ttl(ttl_horas):
+    st.cache_resource.clear()
+    st.session_state.ttl_hours = ttl_horas
+    st.session_state.ultima_atualizacao = None
+    st.rerun()
+
 st.set_page_config(page_title="Hunter Codex", layout="wide")
 st.title("🏹 Hunter Codex Dashboard")
 
@@ -18,7 +83,6 @@ st.title("🏹 Hunter Codex Dashboard")
 with st.sidebar:
     st.header("⚙️ Configurações")
     
-    # Seletor de recurso
     recurso_opcoes = {
         "🐉 Monstros": "monsters",
         "💀 Ailments (Status)": "ailments",
@@ -34,27 +98,124 @@ with st.sidebar:
     
     recurso = recurso_opcoes[recurso_selecionado]
     
-    # Refresh option
-    force_refresh = st.checkbox("🔄 Ignorar cache (buscar da API)", value=False)
+    st.divider()
+    
+    # ========================================================
+    # CONFIGURAÇÕES DO MONGODB
+    # ========================================================
+    st.subheader("🗄️ MongoDB")
+    
+    mongodb_ativado = st.checkbox(
+        "✅ Ativar cache MongoDB",
+        value=st.session_state.mongodb_ativado,
+        help="Quando ativado, os dados são salvos no MongoDB. Quando desativado, busca direto da API."
+    )
+    
+    if mongodb_ativado != st.session_state.mongodb_ativado:
+        st.session_state.mongodb_ativado = mongodb_ativado
+        st.rerun()
+    
+    if st.session_state.mongodb_ativado:
+        ttl_horas = st.slider(
+            "⏰ Tempo de atualização (horas)",
+            min_value=1,
+            max_value=720,
+            value=st.session_state.ttl_hours,
+            step=1,
+            help="Tempo que o cache fica válido. Após isso, os dados são atualizados da API."
+        )
+        
+        if ttl_horas != st.session_state.ttl_hours:
+            reiniciar_servico_com_ttl(ttl_horas)
+        
+        st.caption(f"🕐 TTL atual: {st.session_state.ttl_hours} horas ({st.session_state.ttl_hours/24:.1f} dias)")
+        
+        if st.button("🧹 Limpar cache", type="secondary"):
+            if service.mongo_available:
+                total_removidos = 0
+                for recurso_tipo in service.RECURSOS:
+                    colecao = service._get_collection(recurso_tipo)
+                    if colecao is not None:
+                        try:
+                            resultado = colecao.delete_many({})
+                            total_removidos += resultado.deleted_count
+                        except:
+                            pass
+                st.info(f"🗑️ Removidos {total_removidos} itens do cache")
+                st.session_state.ultima_atualizacao = None
+                st.rerun()
+            else:
+                st.warning("⚠️ MongoDB não disponível para limpar cache")
     
     st.divider()
-    st.caption(f"Cache ativo para todos os recursos")
-    st.caption(f"MongoDB: {'Conectado' if service.mongo_available else 'Offline (usando só API)'}")
+    
+    # ========================================================
+    # ESTATÍSTICAS DO CACHE
+    # ========================================================
+    if st.session_state.mongodb_ativado and service.mongo_available:
+        st.subheader("📊 Estatísticas do Cache")
+        
+        total_itens = 0
+        for recurso_tipo in service.RECURSOS:
+            colecao = service._get_collection(recurso_tipo)
+            if colecao is not None:
+                try:
+                    count = colecao.count_documents({})
+                    total_itens += count
+                    st.caption(f"**{recurso_tipo.capitalize()}:** {count} itens")
+                except:
+                    pass
+        
+        st.caption(f"**Total:** {total_itens} itens cacheados")
+        
+        if st.session_state.ultima_atualizacao:
+            st.caption(f"🔄 Última atualização: {st.session_state.ultima_atualizacao}")
+    
+    # ========================================================
+    # FAVORITOS
+    # ========================================================
+    st.divider()
+    st.subheader("⭐ Favoritos")
+    
+    if st.session_state.favoritos:
+        st.caption(f"{len(st.session_state.favoritos)} item(ns) favoritado(s)")
+        
+        for i, fav in enumerate(st.session_state.favoritos):
+            cols = st.columns([4, 1])
+            with cols[0]:
+                if st.button(f"🔍 {fav['termo']}", key=f"fav_btn_{i}"):
+                    nome = fav['termo']
+                    recurso_selecionado = list(recurso_opcoes.keys())[list(recurso_opcoes.values()).index(fav['recurso'])]
+                    buscar = True
+            with cols[1]:
+                if st.button("🗑️", key=f"fav_del_{i}"):
+                    remover_favorito(fav['termo'], fav['recurso'])
+                    st.rerun()
+    else:
+        st.caption("Nenhum favorito ainda. Use ⭐ nos resultados!")
+    
+    st.divider()
+    force_refresh = st.checkbox(
+        "🔄 Ignorar cache (buscar da API)",
+        value=False,
+        help="Força a busca diretamente da API, ignorando o cache"
+    )
+    
+    st.divider()
+    st.caption(f"MongoDB: {'🟢 Conectado' if service.mongo_available else '🔴 Offline'}")
 
 # ============================================================
-# ÁREA PRINCIPAL - Busca com Autocomplete
+# ÁREA PRINCIPAL - Busca
 # ============================================================
 col1, col2 = st.columns([3, 1])
 
 with col1:
-    # Input com autocomplete
     nome = st.text_input(
         f"🔍 Digite o nome do {recurso_selecionado.lower()}:",
         placeholder="Ex: Great Jagras, Potion, Leather Headgear...",
         key="search_input"
     )
     
-    # Autocomplete enquanto digita (mínimo 2 caracteres)
     if nome and len(nome) >= 2:
         sugestoes = search_service.autocomplete(recurso, nome, limite=5)
         if sugestoes:
@@ -72,6 +233,33 @@ with col2:
     st.write("")
     st.write("")
     buscar = st.button("🔍 Buscar", type="primary", use_container_width=True)
+
+# ============================================================
+# HISTÓRICO DE BUSCAS
+# ============================================================
+if st.session_state.historico:
+    with st.expander("📜 Histórico de buscas (últimas 10)"):
+        for i, item in enumerate(st.session_state.historico):
+            cols = st.columns([6, 1, 1])
+            with cols[0]:
+                if st.button(f"🔍 {item['termo']} ({item['recurso']})", key=f"hist_{i}"):
+                    nome = item['termo']
+                    recurso_selecionado = list(recurso_opcoes.keys())[list(recurso_opcoes.values()).index(item['recurso'])]
+                    buscar = True
+            with cols[1]:
+                if st.button("🗑️", key=f"del_{i}"):
+                    st.session_state.historico.pop(i)
+                    st.rerun()
+            with cols[2]:
+                if is_favorito(item['termo'], item['recurso']):
+                    if st.button("⭐", key=f"fav_hist_{i}"):
+                        remover_favorito(item['termo'], item['recurso'])
+                        st.rerun()
+                else:
+                    if st.button("☆", key=f"fav_hist_{i}"):
+                        adicionar_favorito(item['termo'], item['recurso'])
+                        st.toast(f"⭐ Adicionado aos favoritos: {item['termo']}", icon="⭐")
+                        st.rerun()
 
 # ============================================================
 # Busca Rápida por Letra
@@ -94,18 +282,36 @@ with st.expander("🔤 Busca rápida por letra"):
 # RESULTADOS
 # ============================================================
 if buscar and nome:
+    adicionar_ao_historico(nome, recurso)
+    
+    from datetime import datetime
+    st.session_state.ultima_atualizacao = datetime.now().strftime("%H:%M:%S")
+    
     with st.spinner(f"Buscando {nome} em {recurso_selecionado}..."):
         data = service.get_by_name(recurso, nome, force_refresh=force_refresh)
     
     if data:
-        st.success(f"✅ {recurso_selecionado} encontrado: **{data.get('name')}**")
+        col_titulo, col_botoes = st.columns([4, 1])
+        
+        with col_titulo:
+            st.success(f"✅ {recurso_selecionado} encontrado: **{data.get('name')}**")
+        
+        with col_botoes:
+            item_nome = data.get('name')
+            if is_favorito(item_nome, recurso):
+                if st.button("⭐ Favorito", key=f"fav_remover_{item_nome}", type="primary"):
+                    remover_favorito(item_nome, recurso)
+                    st.toast(f"❌ Removido dos favoritos: {item_nome}", icon="⭐")
+            else:
+                if st.button("☆ Adicionar", key=f"fav_adicionar_{item_nome}"):
+                    adicionar_favorito(item_nome, recurso)
+                    st.toast(f"⭐ Adicionado aos favoritos: {item_nome}", icon="⭐")
         
         # ====================================================
         # EXIBIÇÃO ESPECÍFICA POR TIPO DE RECURSO
         # ====================================================
         
         if recurso == "monsters":
-            # MONSTROS
             col1, col2 = st.columns([1, 2])
             
             with col1:
@@ -124,7 +330,6 @@ if buscar and nome:
                 else:
                     st.write("Nenhuma fraqueza listada")
             
-            # Resistências
             st.subheader("🛡️ Resistências")
             resistances = data.get('resistances', [])
             if resistances:
@@ -134,7 +339,6 @@ if buscar and nome:
             else:
                 st.write("Nenhuma resistência listada")
             
-            # Locais
             st.subheader("📍 Locais")
             locations = data.get('locations', [])
             if locations:
@@ -144,7 +348,6 @@ if buscar and nome:
                 st.write("Nenhum local listado")
         
         elif recurso == "ailments":
-            # AILMENTS (Status)
             st.subheader("📝 Descrição")
             st.write(data.get('description', 'Sem descrição'))
             
@@ -189,7 +392,6 @@ if buscar and nome:
                     st.write("Nenhum método de prevenção listado")
         
         elif recurso == "armor":
-            # ARMADURAS
             col1, col2 = st.columns(2)
             
             with col1:
@@ -210,7 +412,6 @@ if buscar and nome:
                 st.write(f"**Raio:** {resist.get('thunder', 0)}")
                 st.write(f"**Dragão:** {resist.get('dragon', 0)}")
             
-            # Skills
             st.subheader("✨ Skills")
             skills = data.get('skills', [])
             if skills:
@@ -219,14 +420,12 @@ if buscar and nome:
             else:
                 st.write("Sem skills")
             
-            # Set Bonus
             armor_set = data.get('armorSet')
             if armor_set and armor_set.get('bonus'):
                 st.subheader("🎯 Set Bonus")
                 st.write(armor_set['bonus'].get('name', 'Unknown'))
         
         elif recurso == "items":
-            # ITENS
             col1, col2, col3 = st.columns(3)
             
             with col1:
@@ -244,7 +443,6 @@ if buscar and nome:
             st.subheader("📝 Descrição")
             st.write(data.get('description', 'Sem descrição'))
             
-            # Crafting (se aplicável)
             crafting = data.get('crafting')
             if crafting:
                 st.subheader("🔨 Crafting")
@@ -256,7 +454,6 @@ if buscar and nome:
                         st.write(f"- {item.get('name', 'Unknown')} x{qtd}")
         
         elif recurso == "weapons":
-            # ARMAS
             col1, col2, col3 = st.columns(3)
             
             with col1:
@@ -273,7 +470,6 @@ if buscar and nome:
                 st.write(f"**Display:** {attack.get('display', 'N/A')}")
                 st.write(f"**Raw:** {attack.get('raw', 'N/A')}")
             
-            # Afinidade e slots
             col1, col2 = st.columns(2)
             with col1:
                 st.subheader("🎯 Afinidade")
@@ -293,7 +489,6 @@ if buscar and nome:
                 else:
                     st.write("Sem slots")
             
-            # Elementos
             st.subheader("✨ Elementos")
             elements = data.get('elements', [])
             if elements:
@@ -302,7 +497,6 @@ if buscar and nome:
             else:
                 st.write("Sem elementos")
             
-            # Crafting tree
             st.subheader("🔨 Crafting")
             crafting = data.get('crafting', {})
             
@@ -319,14 +513,10 @@ if buscar and nome:
                     qtd = mat.get('quantity', 1)
                     st.write(f"- {item.get('name', 'Unknown')} x{qtd}")
             
-            # Upgrade path
             branches = crafting.get('branches', [])
             if branches:
                 st.write(f"**Upgrade para:** {len(branches)} arma(s)")
         
-        # ====================================================
-        # DADOS BRUTOS (expansível)
-        # ====================================================
         with st.expander("📄 Ver dados técnicos completos (JSON)"):
             st.json(data)
     
