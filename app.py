@@ -213,6 +213,7 @@ with col1:
     nome = st.text_input(
         f"🔍 Digite o nome do {recurso_selecionado.lower()}:",
         placeholder="Ex: Great Jagras, Potion, Leather Headgear...",
+        help="Digite termos familiares ou parte do nome. Use sugestões para selecionar rapidamente o item correto.",
         key="search_input"
     )
     

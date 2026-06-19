@@ -46,6 +46,7 @@ with col1:
     nome1 = st.text_input(
         "Digite o nome do primeiro monstro:",
         placeholder="Ex: Great Jagras",
+        help="Comece a digitar o nome do monstro e selecione uma sugestão para garantir resultados precisos.",
         key="monster1_input"
     )
     
@@ -68,6 +69,7 @@ with col2:
     nome2 = st.text_input(
         "Digite o nome do segundo monstro:",
         placeholder="Ex: Rathalos",
+        help="Digite o nome do segundo monstro e use sugestões para comparar com precisão.",
         key="monster2_input"
     )
     
