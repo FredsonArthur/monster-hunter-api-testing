@@ -8,6 +8,9 @@ import os
 import streamlit as st
 import pandas as pd
 import requests
+import json
+import html as html_lib
+import streamlit.components.v1 as components
 
 # Adiciona o diretório raiz ao path para importar os serviços
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -229,6 +232,67 @@ if comparar and nome1 and nome2:
             with col_json2:
                 st.subheader(monstro2.get('name'))
                 st.json(monstro2)
+
+        # ====================================================
+        # EXPORTAR / COMPARTILHAR
+        # ====================================================
+        # Prepara string JSON dos dois monstros
+        json_str = json.dumps({"monstro1": monstro1, "monstro2": monstro2}, ensure_ascii=False, indent=2)
+
+        export_col1, export_col2, export_col3 = st.columns([1,1,1])
+        with export_col1:
+            st.download_button(
+                label="📥 Baixar JSON",
+                data=json_str,
+                file_name=f"{monstro1.get('name', 'monstro1')}_vs_{monstro2.get('name', 'monstro2')}.json",
+                mime="application/json",
+                key="download_json"
+            )
+
+        with export_col2:
+            # Combina tabelas em um CSV simples para comparação
+            try:
+                df_info_export = df_info.copy()
+                df_info_export.insert(0, "Seção", "Informações Básicas")
+                df_weak_export = df_weak.copy()
+                df_weak_export.insert(0, "Seção", "Fraquezas")
+                df_res_export = df_res.copy()
+                df_res_export.insert(0, "Seção", "Resistências")
+                df_combined = pd.concat([df_info_export, df_weak_export, df_res_export], ignore_index=True, sort=False)
+            except Exception:
+                # Fallback caso alguma tabela esteja ausente
+                df_combined = pd.DataFrame({"Monstro1": [monstro1.get('name')], "Monstro2": [monstro2.get('name')]})
+
+            csv_bytes = df_combined.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Baixar CSV",
+                data=csv_bytes,
+                file_name=f"{monstro1.get('name', 'monstro1')}_vs_{monstro2.get('name', 'monstro2')}.csv",
+                mime="text/csv",
+                key="download_csv"
+            )
+
+        with export_col3:
+            # Botão para copiar JSON para área de transferência (compartilhamento fácil)
+            safe_json = html_lib.escape(json_str)
+            html = f"""
+            <textarea id="jsontext" style="display:none;">{safe_json}</textarea>
+            <button id="copybtn">📤 Copiar JSON para área de transferência</button>
+            <script>
+            const btn = document.getElementById('copybtn');
+            btn.addEventListener('click', async () => {
+                const text = document.getElementById('jsontext').value;
+                try {
+                    await navigator.clipboard.writeText(text);
+                    btn.innerText = '✅ Copiado!';
+                    setTimeout(()=> btn.innerText = '📤 Copiar JSON para área de transferência', 2000);
+                } catch (e) {
+                    btn.innerText = '⚠️ Falha ao copiar';
+                }
+            });
+            </script>
+            """
+            components.html(html, height=60)
 
 elif comparar:
     st.warning("⚠️ Por favor, digite o nome de dois monstros para comparar.")
