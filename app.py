@@ -236,6 +236,31 @@ with col2:
     buscar = st.button("🔍 Buscar", type="primary", use_container_width=True)
 
 # ============================================================
+# BUSCA POR LOCALIZAÇÃO
+if recurso == "monsters":
+    locations = search_service.get_locations("monsters")
+    local_escolhido = st.selectbox(
+        "🌍 Buscar monstros por local:",
+        options=[""] + locations,
+        help="Selecione um local para listar os monstros que aparecem ali.",
+        key="location_search"
+    )
+
+    if local_escolhido:
+        monstros_local = search_service.monsters_by_location(local_escolhido)
+        with st.expander(f"📍 Monstros do {local_escolhido}", expanded=True):
+            if monstros_local:
+                st.caption("Clique em um monstro para ver seus detalhes.")
+                cols = st.columns(4)
+                for i, monstro_nome in enumerate(monstros_local):
+                    with cols[i % 4]:
+                        if st.button(monstro_nome, key=f"loc_monster_{local_escolhido}_{i}"):
+                            nome = monstro_nome
+                            buscar = True
+            else:
+                st.info("Nenhum monstro encontrado neste local.")
+
+# ============================================================
 # HISTÓRICO DE BUSCAS
 # ============================================================
 if st.session_state.historico:

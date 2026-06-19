@@ -13,6 +13,7 @@ class SearchService:
     
     def __init__(self):
         self.cache_busca = {}  # Cache em memória para buscas
+        self._fixtures = {}
         self._carregar_fixtures()
     
     def _carregar_fixtures(self):
@@ -36,7 +37,7 @@ class SearchService:
             
             if caminho_encontrado:
                 try:
-                    with open(caminho_encontrado) as f:
+                    with open(caminho_encontrado, encoding='utf-8') as f:
                         dados = json.load(f)
                         # Extrai nomes de cada item
                         self.cache_busca[recurso] = [
@@ -44,9 +45,11 @@ class SearchService:
                             for item in dados
                             if item.get("name")
                         ]
+                        self._fixtures[recurso] = dados
                 except Exception as e:
                     print(f"Erro ao carregar {recurso}: {e}")
                     self.cache_busca[recurso] = []
+                    self._fixtures[recurso] = []
             else:
                 print(f"Arquivo não encontrado: tests/fixtures/{recurso}.json")
                 self.cache_busca[recurso] = []
@@ -103,3 +106,31 @@ class SearchService:
     def get_all_names(self, recurso: str) -> List[str]:
         """Retorna todos os nomes de um recurso"""
         return [item.get("name") for item in self.cache_busca.get(recurso, []) if item.get("name")]
+
+    def get_locations(self, recurso: str = "monsters") -> List[str]:
+        """Retorna todos os locais únicos para o recurso de monstros"""
+        if recurso != "monsters":
+            return []
+
+        locations = set()
+        for monster in self._fixtures.get("monsters", []):
+            for loc in monster.get("locations", []):
+                name = loc.get("name")
+                if name:
+                    locations.add(name)
+        return sorted(locations)
+
+    def monsters_by_location(self, location: str) -> List[str]:
+        """Retorna os nomes dos monstros encontrados em um local específico"""
+        if not location:
+            return []
+
+        location_lower = location.lower()
+        monsters = []
+        for monster in self._fixtures.get("monsters", []):
+            for loc in monster.get("locations", []):
+                if loc.get("name", "").lower() == location_lower:
+                    monster_name = monster.get("name")
+                    if monster_name and monster_name not in monsters:
+                        monsters.append(monster_name)
+        return sorted(monsters)
