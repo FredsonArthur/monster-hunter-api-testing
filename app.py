@@ -1,4 +1,3 @@
-@ -1,558 +0,1 @@
 import streamlit as st
 import pandas as pd
 import requests
